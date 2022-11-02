@@ -73,6 +73,11 @@ class PgAnonymizer extends Command {
       description: "output file",
       default: "output.sql",
     }),
+    input: flags.string({
+      char: "i",
+      description: "input file",
+      default: "input.sql",
+    }),
     fakerLocale: flags.string({
       char: "f",
       description: "faker locale (e.g: en, fr, de)",
@@ -97,17 +102,6 @@ class PgAnonymizer extends Command {
 
     sanitizePgDumpArgs(argv);
     console.error("Launching pg_dump");
-    const pg = spawn("pg_dump", argv);
-    pg.on("exit", function (code) {
-      if (code != 0) {
-        dieAndLog("pg_dump command failed with exit code", code);
-      }
-    });
-    pg.stderr.on("data", function (data) {
-      dieAndLog("pg_dump command error:", data.toString());
-    });
-    pg.stdout.setEncoding("utf8");
-
     if (!(flags.list || flags.configFile)) {
       flags.list = "email,name,description,address,city,country,phone,comment,birthdate";
     }
@@ -150,9 +144,9 @@ class PgAnonymizer extends Command {
       out = fs.createWriteStream(flags.output);
       console.error("Output file: " + flags.output);
     }
-
+    const inputStream = fs.createReadStream(flags.input);
     const inputLineResults = readline.createInterface({
-      input: pg.stdout,
+      input: inputStream,
       crlfDelay: Infinity,
     }) as any as Iterable<String>;
 
@@ -215,6 +209,8 @@ class PgAnonymizer extends Command {
               }
               if (cols[k] === "email") return faker.internet.email();
               if (cols[k] === "name") return faker.name.findName();
+              if (cols[k] === "first_name") return faker.name.firstName();
+              if (cols[k] === "last_name") return faker.name.lastName();
               if (cols[k] === "description") return faker.random.words(3);
               if (cols[k] === "address") return faker.address.streetAddress();
               if (cols[k] === "city") return faker.address.city();
